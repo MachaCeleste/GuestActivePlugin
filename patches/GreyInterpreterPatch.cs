@@ -1,26 +1,23 @@
 ﻿using HarmonyLib;
 using Miniscript;
+using System.Reflection;
 
 [HarmonyPatch]
-class GreyInterpreterPatch
+public class GreyInterpreterPatch
 {
-    private static GreyMap _netSessionType;
     [HarmonyPatch(typeof(GreyInterpreter), "NetSessionType")]
-    static bool Prefix(GreyInterpreter __instance, ref GreyMap __result)
+    class NetSessionTypePatch
     {
-        if (_netSessionType == null)
+        static void Postfix(GreyInterpreter __instance, ref GreyMap __result)
         {
-            GreyMap greyMap = new GreyMap();
-            greyMap["dump_lib"] = Intrinsic.GetByName("dump_lib").GetFunc();
-            greyMap["get_num_users"] = Intrinsic.GetByName("get_num_users").GetFunc();
-            greyMap["get_num_portforward"] = Intrinsic.GetByName("get_num_portforward").GetFunc();
-            greyMap["get_num_conn_gateway"] = Intrinsic.GetByName("get_num_conn_gateway").GetFunc();
-            greyMap["is_any_active_user"] = Intrinsic.GetByName("is_any_active_user").GetFunc();
-            greyMap["is_root_active_user"] = Intrinsic.GetByName("is_root_active_user").GetFunc();
-            greyMap["is_guest_active_user"] = Intrinsic.GetByName("is_guest_active_user").GetFunc();
-            _netSessionType = greyMap;
+            FieldInfo fieldInfo = AccessTools.Field(typeof(GreyInterpreter), "_netSessionType");
+            GreyMap _netSessionType = fieldInfo.GetValue(__instance) as GreyMap;
+            if (!_netSessionType.ContainsKey("is_guest_active_user"))
+            {
+                _netSessionType["is_guest_active_user"] = Intrinsic.GetByName("is_guest_active_user").GetFunc();
+            }
+            fieldInfo.SetValue(__instance, _netSessionType);
+            __result = _netSessionType;
         }
-        __result = _netSessionType;
-        return false;
     }
 }

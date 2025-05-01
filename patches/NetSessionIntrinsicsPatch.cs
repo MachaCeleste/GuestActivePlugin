@@ -3,44 +3,47 @@ using Miniscript;
 using System.Collections.Generic;
 
 [HarmonyPatch]
-class NetSessionIntrinsicsPatch
+public class NetSessionIntrinsicsPatch
 {
-    private static bool intrinsicsAdded;
-
     [HarmonyPatch(typeof(NetSessionIntrinsics), "AddInstrinsics")]
-    static void Postfix()
+    class AddInstrinsicsPatch
     {
-        if (intrinsicsAdded)
-            return;
-        intrinsicsAdded = true;
-        Intrinsic intrinsic = Intrinsic.Create("is_guest_active_user");
-        intrinsic.AddParam("self");
-        intrinsic.code = delegate (TAC.Context context, Intrinsic.Result partialResult)
+        private static bool intrinsicsAdded;
+
+        static void Postfix()
         {
-            GreyMap greyMap = context.GetVar("self") as GreyMap;
-            if (greyMap != null)
+            if (intrinsicsAdded)
+                return;
+            intrinsicsAdded = true;
+            Intrinsic intrinsic = Intrinsic.Create("is_guest_active_user");
+            intrinsic.AddParam("self");
+            intrinsic.code = delegate (TAC.Context context, Intrinsic.Result partialResult)
             {
-                HelperScript.HelperValFile netSession = ((GreyInterpreter)context.interpreter).hostData.GetNetSession(greyMap);
-                if (netSession != null)
+                GreyMap greyMap = context.GetVar("self") as GreyMap;
+                if (greyMap != null)
                 {
-                    List<Computer.Procesos> procesos = netSession.GetComputer().GetProcesos();
-                    bool flag = false;
-                    for (int i = 0; i < procesos.Count; i++)
+                    HelperScript.HelperValFile netSession = ((GreyInterpreter)context.interpreter).hostData.GetNetSession(greyMap);
+                    if (netSession != null)
                     {
-                        if (!procesos[i].nombreProceso.Equals("Xorg") && !procesos[i].nombreProceso.Equals("kernel_task") && procesos[i].nombreUser.Equals("guest"))
+                        List<Computer.Procesos> procesos = netSession.GetComputer().GetProcesos();
+                        bool flag = false;
+                        for (int i = 0; i < procesos.Count; i++)
                         {
-                            flag = true;
-                            break;
+                            if (!procesos[i].nombreProceso.Equals("Xorg") && !procesos[i].nombreProceso.Equals("kernel_task") && procesos[i].nombreUser.Equals("guest"))
+                            {
+                                flag = true;
+                                break;
+                            }
                         }
+                        if (!flag)
+                        {
+                            return Intrinsic.Result.False;
+                        }
+                        return Intrinsic.Result.True;
                     }
-                    if (!flag)
-                    {
-                        return Intrinsic.Result.False;
-                    }
-                    return Intrinsic.Result.True;
                 }
-            }
-            return Intrinsic.Result.Null;
-        };
+                return Intrinsic.Result.Null;
+            };
+        }
     }
 }
